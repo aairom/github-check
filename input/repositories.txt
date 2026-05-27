@@ -1,0 +1,16 @@
+# GitHub Repositories to Monitor
+# Format: owner/repo (one per line)
+# Lines starting with # are comments and will be ignored
+
+# Example repositories for testing:
+torvalds/linux
+microsoft/vscode
+python/cpython
+
+# Add your repositories below:
+docling-project/docling
+ibm/ibm-watsonx-orchestrate-adk
+ibm/mcp-context-forge
+generative-computing/mellea
+containers/podman
+podman-desktop/podman-desktop

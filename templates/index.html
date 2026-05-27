@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Monitor - Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 GitHub Repository Monitor</h1>
+            <p class="subtitle">Real-time visualization of repository updates</p>
+        </header>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📦</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="total-repos">-</div>
+                    <div class="stat-label">Total Repositories</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔔</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="total-updates">-</div>
+                    <div class="stat-label">Total Updates</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="updates-today">-</div>
+                    <div class="stat-label">Updates Today</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⭐</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="most-active">-</div>
+                    <div class="stat-label">Most Active</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Chart -->
+        <div class="section">
+            <h2>📈 Update Timeline (Last 30 Days)</h2>
+            <div class="chart-container">
+                <canvas id="timeline-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Repositories Table -->
+        <div class="section">
+            <h2>📚 Monitored Repositories</h2>
+            <div class="table-container">
+                <table id="repos-table">
+                    <thead>
+                        <tr>
+                            <th>Repository</th>
+                            <th>First Checked</th>
+                            <th>Last Update</th>
+                            <th>Updates</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="repos-tbody">
+                        <tr>
+                            <td colspan="5" class="loading">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent Updates -->
+        <div class="section">
+            <h2>🔔 Recent Updates</h2>
+            <div class="updates-container" id="updates-list">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Repository Details Modal -->
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2 id="modal-title">Repository Details</h2>
+                <div id="modal-body">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>GitHub Monitor Dashboard | Auto-refresh every 30 seconds</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
