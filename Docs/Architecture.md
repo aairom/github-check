@@ -2,26 +2,33 @@
 
 ## System Overview
 
-The GitHub Repository Monitor is a Python-based application designed to track updates to GitHub repositories and maintain a historical log in a SQLite database.
+The GitHub Repository Monitor is a comprehensive Python-based application designed to track updates to GitHub repositories, maintain a historical log in a SQLite database, and provide real-time visualization through a web dashboard.
 
-## Architecture Diagram
+## System Architecture Diagram
 
 ```mermaid
 graph TB
-    subgraph "User Interface"
+    subgraph "User Interface Layer"
         CLI[Command Line Interface]
+        WEB[Web Dashboard<br/>Browser]
         CRON[Cron Scheduler]
     end
     
     subgraph "Application Layer"
-        MAIN[Main Application<br/>github_monitor.py]
+        MAIN[Main Monitor<br/>github_monitor.py]
+        VIEWER[Web Viewer<br/>web_viewer.py]
         CONFIG[Configuration Parser]
         SCHEDULER[Schedule Script<br/>schedule_monitor.sh]
     end
     
+    subgraph "Presentation Layer"
+        TEMPLATES[HTML Templates]
+        STATIC[Static Assets<br/>CSS/JS]
+    end
+    
     subgraph "Data Layer"
         REPOS[repositories.txt]
-        DB[(SQLite Database)]
+        DB[(SQLite Database<br/>github_monitor.db)]
         LOGS[Log Files]
         REPORTS[Report Files]
     end
@@ -33,6 +40,7 @@ graph TB
     CLI -->|Execute| MAIN
     CRON -->|Trigger| SCHEDULER
     SCHEDULER -->|Execute| MAIN
+    WEB -->|HTTP Request| VIEWER
     
     MAIN -->|Read| REPOS
     MAIN -->|Parse| CONFIG
@@ -42,12 +50,22 @@ graph TB
     GITHUB -->|JSON Response| MAIN
     
     MAIN -->|Query/Insert| DB
+    VIEWER -->|Query| DB
+    DB -->|Data| VIEWER
+    
+    VIEWER -->|Render| TEMPLATES
+    VIEWER -->|Serve| STATIC
+    TEMPLATES -->|HTML| WEB
+    STATIC -->|CSS/JS| WEB
+    
     MAIN -->|Write| LOGS
     MAIN -->|Generate| REPORTS
     
     style MAIN fill:#4CAF50,stroke:#2E7D32,stroke-width:3px
+    style VIEWER fill:#9C27B0,stroke:#6A1B9A,stroke-width:3px
     style DB fill:#2196F3,stroke:#1565C0,stroke-width:3px
     style GITHUB fill:#FF9800,stroke:#E65100,stroke-width:3px
+    style WEB fill:#E91E63,stroke:#C2185B,stroke-width:2px
 ```
 
 ## Component Architecture
@@ -243,24 +261,41 @@ GET https://api.github.com/repos/{owner}/{repo}
 
 ```
 github-check/
-├── github_monitor.py          # Main application
+├── github_monitor.py          # Main monitoring application
+├── web_viewer.py              # Web dashboard application (Flask)
 ├── github_monitor.db          # SQLite database (auto-created)
-├── .gitignore                 # Git ignore rules
-├── README.md                  # User documentation
+├── requirements.txt           # Python dependencies (requests, flask)
+├── .gitignore                 # Git ignore rules (filters .env, _* folders)
+├── .gitattributes             # Git attributes configuration
+├── LICENSE                    # Project license
+├── README.md                  # User documentation with diagrams
 │
 ├── Docs/
-│   └── Architecture.md        # This file
+│   ├── Architecture.md        # This file - Technical architecture
+│   └── WebViewer.md           # Web dashboard documentation
 │
 ├── scripts/
-│   └── schedule_monitor.sh    # Cron scheduler script
+│   ├── schedule_monitor.sh    # Cron scheduler script
+│   ├── github-push.sh         # Git push automation script
+│   ├── killer-port.sh         # Port management utility
+│   └── hard-killer-port.sh    # Force kill port utility
 │
 ├── input/
-│   └── repositories.txt       # Repository list
+│   └── repositories.txt       # Repository list (owner/repo format)
 │
-└── output/
-    ├── logs/                  # Execution logs (from cron)
-    │   └── YYYYMMDD_HHMMSS_monitor.log
-    └── YYYYMMDD_HHMMSS_report.txt  # Generated reports
+├── output/
+│   ├── logs/                  # Execution logs (from cron)
+│   │   └── YYYYMMDD_HHMMSS_monitor.log
+│   └── YYYYMMDD_HHMMSS_report.txt  # Generated reports
+│
+├── templates/
+│   └── index.html             # Web dashboard HTML template
+│
+└── static/
+    ├── css/
+    │   └── style.css          # Dashboard styles (dark theme)
+    └── js/
+        └── app.js             # Dashboard JavaScript (Chart.js, API calls)
 ```
 
 ## Execution Flow
@@ -418,10 +453,13 @@ graph LR
    - Call from update detection logic
    - Support email, Slack, etc.
 
-4. **Web Interface**
-   - Add Flask/FastAPI layer
-   - Query database for display
-   - Trigger checks via web UI
+4. **Web Interface** ✅ IMPLEMENTED
+   - Flask-based web dashboard (web_viewer.py)
+   - Real-time data visualization with Chart.js
+   - RESTful API endpoints for data access
+   - Auto-refresh functionality (30 seconds)
+   - Clickable repository links to GitHub
+   - Dark theme responsive UI
 
 ## Testing Strategy
 
@@ -463,10 +501,152 @@ graph LR
 - Rotate old logs
 - Update repository list as needed
 
+## Web Dashboard Architecture
+
+### Technology Stack
+- **Backend**: Flask 3.0+ (Python web framework)
+- **Frontend**: Vanilla JavaScript with Chart.js
+- **Styling**: Custom CSS with dark theme
+- **Data Format**: JSON API responses
+- **Port**: 5001 (avoiding macOS AirDrop conflict on 5000)
+
+### API Endpoints
+
+```mermaid
+graph LR
+    Browser[Web Browser] -->|GET /| Flask[Flask App]
+    Browser -->|GET /api/stats| Flask
+    Browser -->|GET /api/repositories| Flask
+    Browser -->|GET /api/updates| Flask
+    Browser -->|GET /api/timeline| Flask
+    Browser -->|GET /api/repository/:id| Flask
+    Flask -->|Query| DB[(SQLite)]
+    DB -->|JSON| Flask
+    Flask -->|Response| Browser
+    
+    style Flask fill:#9C27B0
+    style DB fill:#2196F3
+```
+
+#### Endpoint Details
+
+1. **GET /** - Main dashboard page
+   - Returns: HTML template with embedded CSS/JS
+
+2. **GET /api/stats** - Overall statistics
+   - Returns: JSON with total repos, updates, today's updates, most active repo
+
+3. **GET /api/repositories** - All repositories
+   - Returns: JSON array of repositories with update counts
+
+4. **GET /api/updates** - Recent updates (last 50)
+   - Returns: JSON array of update events
+
+5. **GET /api/timeline** - Timeline data (last 30 days)
+   - Returns: JSON array of date/count pairs for charting
+
+6. **GET /api/repository/:id** - Repository details
+   - Returns: JSON with repository info and full update history
+
+### Web Dashboard Features
+
+#### Statistics Dashboard
+- Real-time counters for key metrics
+- Visual cards with icons
+- Auto-updating every 30 seconds
+
+#### Interactive Timeline Chart
+- Chart.js line chart
+- Last 30 days of activity
+- Hover tooltips for exact counts
+- Responsive design
+
+#### Repository Management
+- Sortable table of all repositories
+- Update counts per repository
+- Clickable repository names (direct GitHub links)
+- Modal view for detailed history
+
+#### Recent Updates Feed
+- Live feed of last 50 updates
+- Color-coded badges:
+  - 🟢 Green: FIRST RUN (initial logging)
+  - 🟠 Orange: UPDATE (change detected)
+- Clickable repository names
+- Formatted timestamps
+
+#### User Experience
+- Dark theme for reduced eye strain
+- Smooth animations and transitions
+- Responsive layout (mobile-friendly)
+- Loading states for async operations
+- Error handling with user feedback
+
+### Web Viewer Class Structure
+
+```python
+# web_viewer.py
+Flask App
+├── Routes
+│   ├── index() -> Dashboard HTML
+│   ├── get_stats() -> Statistics JSON
+│   ├── get_repositories() -> Repositories JSON
+│   ├── get_updates() -> Updates JSON
+│   ├── get_timeline() -> Timeline JSON
+│   └── get_repository_details(id) -> Repository JSON
+│
+├── Utilities
+│   ├── get_db_connection() -> SQLite connection
+│   └── format_timestamp() -> Formatted date string
+│
+└── Configuration
+    ├── DB_PATH = 'github_monitor.db'
+    ├── HOST = '127.0.0.1'
+    └── PORT = 5001
+```
+
+## Utility Scripts
+
+### schedule_monitor.sh
+Bash script for automated monitoring via cron.
+
+**Features:**
+- Automatic log directory creation
+- Timestamped log files (YYYYMMDD_HHMMSS_monitor.log)
+- Log rotation (keeps last 30 days)
+- Python version detection (python3/python)
+- Error handling and logging
+- Environment setup
+
+**Usage:**
+```bash
+# Manual execution
+./scripts/schedule_monitor.sh
+
+# Cron setup (hourly)
+0 * * * * /path/to/github-check/scripts/schedule_monitor.sh
+```
+
+### github-push.sh
+Git automation script for pushing changes to GitHub.
+
+**Features:**
+- Automated git add, commit, and push
+- Timestamp-based commit messages
+- Error handling
+
+### killer-port.sh & hard-killer-port.sh
+Port management utilities for development.
+
+**Features:**
+- Find and kill processes on specific ports
+- Useful for freeing up port 5001 for web viewer
+- Hard killer for stubborn processes
+
 ## Future Enhancements
 
 ### Potential Features
-- Web dashboard
+- ✅ Web dashboard (IMPLEMENTED)
 - Email notifications
 - Webhook support
 - Multi-user support
@@ -476,9 +656,57 @@ graph LR
 - Diff viewing
 - Branch monitoring
 - Release tracking
+- Push notifications (browser)
+- Export to CSV/JSON
+- Advanced filtering and search
+- Repository grouping/tagging
 
 ### Performance Improvements
 - Parallel API requests
-- Caching layer
+- Caching layer (Redis)
 - Incremental updates only
 - GraphQL API migration
+- WebSocket for real-time updates
+- Database indexing optimization
+
+## Component Updates Summary
+
+### Recent Additions (2026-05-27/28)
+
+1. **Web Dashboard (web_viewer.py)**
+   - Flask-based real-time visualization
+   - RESTful API with 6 endpoints
+   - Chart.js integration for timeline visualization
+   - Dark theme responsive UI
+   - Auto-refresh every 30 seconds
+   - Clickable GitHub repository links
+
+2. **Enhanced Documentation**
+   - WebViewer.md - Comprehensive web dashboard guide
+   - Updated README.md with web viewer instructions
+   - Architecture diagrams with Mermaid
+
+3. **Utility Scripts**
+   - github-push.sh - Git automation
+   - killer-port.sh - Port management
+   - hard-killer-port.sh - Force kill utility
+
+4. **Static Assets**
+   - templates/index.html - Dashboard HTML
+   - static/css/style.css - Dark theme styles
+   - static/js/app.js - Dashboard JavaScript with Chart.js
+
+5. **Configuration Updates**
+   - .gitignore - Filters .env files and _* folders
+   - requirements.txt - Added Flask dependency
+   - Port 5001 usage (avoiding macOS AirDrop on 5000)
+
+### Key Improvements
+
+- **Real-time Monitoring**: Web dashboard provides live updates
+- **Better UX**: Visual representation of data with charts and cards
+- **Accessibility**: Clickable links to GitHub repositories
+- **Automation**: Enhanced scripts for deployment and maintenance
+- **Documentation**: Comprehensive guides with architecture diagrams
+
+---
